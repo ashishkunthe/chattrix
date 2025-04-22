@@ -4,27 +4,39 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export interface AuthenticatedRequest extends Request {
-  userId?: number;
+// Define the shape of your JWT payload
+interface JwtPayload {
+  id: number;
 }
 
-export const authenticateToken = (
-  req: AuthenticatedRequest,
+// Extend Express Request to include userId
+declare module "express" {
+  interface Request {
+    userId?: number;
+  }
+}
+
+export function authMiddleware(
+  req: Request,
   res: Response,
   next: NextFunction
-) => {
+) {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(" ")[1];
 
-  if (!token) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "No token provided" });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET!, (err, payload) => {
-    if (err) return res.status(403).json({ message: "Invalid token" });
+  const token = authHeader.split(" ")[1];
 
-    const { id } = payload as { id: number };
-    req.userId = id;
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as JwtPayload;
+    req.userId = decoded.id;
     next();
-  });
-};
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+}
