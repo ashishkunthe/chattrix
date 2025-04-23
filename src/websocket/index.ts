@@ -4,54 +4,59 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const userConnections = new Map<number, WebSocket>();
+// 🧠 Mapping: userId => WebSocket connection
+export const connectedUsers = new Map<number, WebSocket>();
 
 export function initWebSocket(server: any) {
   const wss = new WebSocketServer({ server });
 
-  wss.on("connection", (ws: WebSocket, req) => {
-    const params = new URLSearchParams(req.url?.split("?")[1]);
-    const token = params.get("token");
+  wss.on("connection", (ws) => {
+    console.log("🟢 New WebSocket connection");
+    let currentUserId: number | null = null;
 
-    if (!token) {
-      ws.close();
-      return;
-    }
+    ws.on("message", (data) => {
+      const msg = JSON.parse(data.toString());
 
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-        id: number;
-      };
-      const userId = decoded.id;
+      // 1️⃣ Handle Authentication
+      if (msg.type === "auth") {
+        try {
+          const decoded = jwt.verify(
+            msg.token,
+            process.env.JWT_SECRET as string
+          ) as { id: number };
+          currentUserId = decoded.id;
 
-      // Store the WebSocket connection
-      userConnections.set(userId, ws);
-      console.log(`User ${userId} connected`);
+          // Save socket connection
+          connectedUsers.set(currentUserId, ws);
+          console.log(`✅ Authenticated user ${currentUserId}`);
+        } catch (err) {
+          console.log("❌ Invalid token");
+          ws.close();
+        }
+        return;
+      }
 
-      ws.on("message", (data) => {
-        const message = JSON.parse(data.toString());
-        const { chatId, content, receiverId } = message;
+      // 2️⃣ Optional: handle direct WS messages (not used right now)
+      if (msg.type === "send_message") {
+        if (!currentUserId) return;
+        const { to, content } = msg;
 
-        console.log("Message received from", userId, "to", receiverId);
-
-        // Send to the receiver if connected
-        const receiverSocket = userConnections.get(receiverId);
+        const receiverSocket = connectedUsers.get(to);
         if (receiverSocket && receiverSocket.readyState === WebSocket.OPEN) {
           receiverSocket.send(
-            JSON.stringify({ chatId, content, senderId: userId })
+            JSON.stringify({
+              type: "new_message",
+              from: currentUserId,
+              content,
+            })
           );
         }
-      });
+      }
+    });
 
-      ws.on("close", () => {
-        userConnections.delete(userId);
-        console.log(`User ${userId} disconnected`);
-      });
-    } catch (err) {
-      console.log("Invalid token");
-      ws.close();
-    }
+    ws.on("close", () => {
+      console.log(`🔴 User ${currentUserId} disconnected`);
+      if (currentUserId) connectedUsers.delete(currentUserId);
+    });
   });
-
-  return wss;
 }
