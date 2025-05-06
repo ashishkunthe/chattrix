@@ -74,4 +74,28 @@ route.get("/chat", authMiddleware, async (req, res) => {
   }
 });
 
+// @ts-ignore
+route.get("/users", authMiddleware, async (req, res) => {
+  // @ts-ignore
+  const currentUserId = req.userId;
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        NOT: { id: currentUserId },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.log("Error fetching users:", error);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
 export default route;

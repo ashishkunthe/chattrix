@@ -16,8 +16,8 @@ app.use(express.json());
 app.use(cors());
 
 // Routes
-app.use("/api/", authRoutes);
-app.use("/api/", chatRoutes);
+app.use("/api", authRoutes);
+app.use("/api", chatRoutes);
 app.use("/api", messageRoutes);
 
 const server = http.createServer(app);
