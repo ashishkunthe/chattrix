@@ -30,7 +30,7 @@ route.post("/chat", authMiddleware, async (req, res) => {
       },
     });
     if (chatExist) {
-      return res.json({ chatExist });
+      return res.json({ chat: chatExist });
     } else {
       const newChat = await prisma.chat.create({
         data: {
@@ -38,7 +38,7 @@ route.post("/chat", authMiddleware, async (req, res) => {
           user2: { connect: { id: targetUserId } },
         },
       });
-      return res.json({ newChat });
+      return res.json({ chat: newChat });
     }
   } catch (error) {
     console.log(error);

@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma";
 import dotenv from "dotenv";
+import { authMiddleware } from "../utils/authMiddleware";
 
 dotenv.config();
 
@@ -71,6 +72,14 @@ route.post("/signin", async (req, res) => {
     console.log(error);
     res.status(500).json({ message: "Something went wrong" });
   }
+});
+
+// @ts-ignore
+route.get("/me", authMiddleware, async (req, res) => {
+  // @ts-ignore
+  const userId = req.userId;
+
+  res.json({ userId });
 });
 
 export default route;

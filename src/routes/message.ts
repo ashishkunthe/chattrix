@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../utils/authMiddleware";
 import prisma from "../lib/prisma";
-import { connectedUsers } from "../websocket";
+import redis from "../redis";
 
 const route = Router();
 
@@ -29,17 +29,16 @@ route.post("/message", authMiddleware, async (req, res) => {
       },
     });
 
-    const receiverSocket = connectedUsers.get(receiverId);
-    if (receiverSocket && receiverSocket.readyState === WebSocket.OPEN) {
-      receiverSocket.send(
-        JSON.stringify({
-          type: "new_message",
-          from: senderId,
-          chatId,
-          content,
-        })
-      );
-    }
+    await redis.publish(
+      "new_message",
+      JSON.stringify({
+        senderId,
+        chatId,
+        content,
+        receiverId,
+      })
+    );
+
     return res.json({ message });
   } catch (e) {
     res.status(500).json({
